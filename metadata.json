@@ -1,0 +1,5 @@
+{
+  "name": "Team Reading Tracker",
+  "description": "A full-stack web application to track and summarize reading activities for team members.",
+  "requestFramePermissions": []
+}
