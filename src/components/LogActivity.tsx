@@ -12,12 +12,14 @@ export function LogActivity({ settings, editLogData, clearEdit }: LogActivityPro
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState('');
+  const [existingValue, setExistingValue] = useState<number | null>(null);
 
   const [formData, setFormData] = useState({
     member_id: '',
     date: format(new Date(), 'yyyy-MM-dd'),
     value: '',
-    notes: ''
+    notes: '',
+    mode: 'add' // 'add' or 'replace'
   });
 
   useEffect(() => {
@@ -25,19 +27,40 @@ export function LogActivity({ settings, editLogData, clearEdit }: LogActivityPro
   }, []);
 
   useEffect(() => {
+    if (formData.member_id && formData.date && !editLogData) {
+      checkExistingLog();
+    } else {
+      setExistingValue(null);
+    }
+  }, [formData.member_id, formData.date, editLogData]);
+
+  const checkExistingLog = async () => {
+    try {
+      const res = await fetch(`/api/logs?startDate=${formData.date}&endDate=${formData.date}`);
+      const logs = await res.json();
+      const memberLog = logs.find((l: any) => l.member_id.toString() === formData.member_id.toString());
+      setExistingValue(memberLog ? memberLog.value : null);
+    } catch (error) {
+      console.error('Failed to check existing log', error);
+    }
+  };
+
+  useEffect(() => {
     if (editLogData) {
       setFormData({
         member_id: editLogData.member_id.toString(),
         date: editLogData.date,
         value: editLogData.value.toString(),
-        notes: editLogData.notes || ''
+        notes: editLogData.notes || '',
+        mode: 'replace'
       });
     } else {
       setFormData({
         member_id: '',
         date: format(new Date(), 'yyyy-MM-dd'),
         value: '',
-        notes: ''
+        notes: '',
+        mode: 'add'
       });
     }
   }, [editLogData]);
@@ -62,13 +85,17 @@ export function LogActivity({ settings, editLogData, clearEdit }: LogActivityPro
       const url = editLogData ? `/api/logs/${editLogData.id}` : '/api/logs';
       const method = editLogData ? 'PUT' : 'POST';
 
+      const payload = {
+        ...formData,
+        value: parseInt(formData.value, 10)
+      };
+      
+      console.log('Submitting payload:', payload);
+
       const res = await fetch(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ...formData,
-          value: parseInt(formData.value, 10)
-        })
+        body: JSON.stringify(payload)
       });
 
       if (!res.ok) {
@@ -82,6 +109,7 @@ export function LogActivity({ settings, editLogData, clearEdit }: LogActivityPro
         clearEdit();
       } else {
         setFormData(prev => ({ ...prev, value: '', notes: '' }));
+        checkExistingLog();
       }
       
       setTimeout(() => setSuccess(false), 3000);
@@ -163,6 +191,33 @@ export function LogActivity({ settings, editLogData, clearEdit }: LogActivityPro
             />
           </div>
 
+          {!editLogData && (
+            <div className="flex bg-gray-100 p-1 rounded-lg">
+              <button
+                type="button"
+                onClick={() => setFormData({ ...formData, mode: 'add' })}
+                className={`flex-1 py-2 text-sm font-medium rounded-md transition-all ${
+                  formData.mode === 'add'
+                    ? 'bg-white text-blue-600 shadow-sm'
+                    : 'text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                Tambah {unit}
+              </button>
+              <button
+                type="button"
+                onClick={() => setFormData({ ...formData, mode: 'replace' })}
+                className={`flex-1 py-2 text-sm font-medium rounded-md transition-all ${
+                  formData.mode === 'replace'
+                    ? 'bg-white text-blue-600 shadow-sm'
+                    : 'text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                Update {unit}
+              </button>
+            </div>
+          )}
+
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Jumlah ({unit})
@@ -173,9 +228,27 @@ export function LogActivity({ settings, editLogData, clearEdit }: LogActivityPro
               min="1"
               value={formData.value}
               onChange={(e) => setFormData({ ...formData, value: e.target.value })}
-              placeholder={`Contoh: ${settings?.tracking_mode === 'pages' ? '10' : '15'}`}
+              placeholder={formData.mode === 'add' ? `Contoh: +15` : `Contoh: 30`}
               className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5"
             />
+            
+            {existingValue !== null && (
+              <div className="mt-2 p-3 bg-blue-50 border border-blue-100 rounded-lg flex items-center justify-between">
+                <span className="text-sm text-blue-800 font-medium">Catatan hari ini:</span>
+                <span className="text-lg font-bold text-blue-900">{existingValue} {unit}</span>
+              </div>
+            )}
+
+            {formData.mode === 'add' && (
+              <p className="mt-1 text-xs text-gray-500">
+                Nilai ini akan ditambahkan ke catatan yang sudah ada untuk tanggal tersebut.
+              </p>
+            )}
+            {formData.mode === 'replace' && (
+              <p className="mt-1 text-xs text-gray-500">
+                Nilai ini akan menggantikan catatan yang sudah ada untuk tanggal tersebut.
+              </p>
+            )}
           </div>
 
           <div>
