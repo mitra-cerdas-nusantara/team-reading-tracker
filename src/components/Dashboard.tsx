@@ -11,7 +11,9 @@ interface DashboardProps {
 export function Dashboard({ settings, onEditLog }: DashboardProps) {
   const [logs, setLogs] = useState<any[]>([]);
   const [members, setMembers] = useState<any[]>([]);
-  const [timeRange, setTimeRange] = useState('week'); // 'week', 'month', 'all'
+  const [timeRange, setTimeRange] = useState('week'); // 'week', 'month', 'all', 'custom'
+  const [customStartDate, setCustomStartDate] = useState(format(subDays(new Date(), 30), 'yyyy-MM-dd'));
+  const [customEndDate, setCustomEndDate] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -20,7 +22,7 @@ export function Dashboard({ settings, onEditLog }: DashboardProps) {
 
   useEffect(() => {
     fetchLogs();
-  }, [timeRange]);
+  }, [timeRange, customStartDate, customEndDate]);
 
   const fetchMembers = async () => {
     try {
@@ -39,7 +41,11 @@ export function Dashboard({ settings, onEditLog }: DashboardProps) {
       const today = new Date();
       let startDate, endDate;
 
-      if (timeRange === 'week') {
+      if (timeRange === 'today') {
+        startDate = format(today, 'yyyy-MM-dd');
+        endDate = format(today, 'yyyy-MM-dd');
+        url += `?startDate=${startDate}&endDate=${endDate}`;
+      } else if (timeRange === 'week') {
         startDate = format(startOfWeek(today, { weekStartsOn: 1 }), 'yyyy-MM-dd');
         endDate = format(endOfWeek(today, { weekStartsOn: 1 }), 'yyyy-MM-dd');
         url += `?startDate=${startDate}&endDate=${endDate}`;
@@ -60,6 +66,8 @@ export function Dashboard({ settings, onEditLog }: DashboardProps) {
         startDate = format(startOfYear(today), 'yyyy-MM-dd');
         endDate = format(endOfYear(today), 'yyyy-MM-dd');
         url += `?startDate=${startDate}&endDate=${endDate}`;
+      } else if (timeRange === 'custom') {
+        url += `?startDate=${customStartDate}&endDate=${customEndDate}`;
       }
 
       const res = await fetch(url);
@@ -113,18 +121,39 @@ export function Dashboard({ settings, onEditLog }: DashboardProps) {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <h2 className="text-2xl font-bold text-gray-900">Dashboard</h2>
-        <select
-          value={timeRange}
-          onChange={(e) => setTimeRange(e.target.value)}
-          className="bg-white border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block p-2.5"
-        >
-          <option value="week">Minggu Ini</option>
-          <option value="month">Bulan Ini</option>
-          <option value="last_month">Bulan Lalu</option>
-          <option value="last_3_months">3 Bulan Terakhir</option>
-          <option value="this_year">Tahun Ini</option>
-          <option value="all">Semua Waktu</option>
-        </select>
+        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2">
+          {timeRange === 'custom' && (
+            <div className="flex items-center gap-2 mr-2">
+              <input
+                type="date"
+                value={customStartDate}
+                onChange={(e) => setCustomStartDate(e.target.value)}
+                className="bg-white border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block p-2"
+              />
+              <span className="text-gray-500">s/d</span>
+              <input
+                type="date"
+                value={customEndDate}
+                onChange={(e) => setCustomEndDate(e.target.value)}
+                className="bg-white border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block p-2"
+              />
+            </div>
+          )}
+          <select
+            value={timeRange}
+            onChange={(e) => setTimeRange(e.target.value)}
+            className="bg-white border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block p-2.5 min-w-[140px]"
+          >
+            <option value="today">Hari Ini</option>
+            <option value="week">Minggu Ini</option>
+            <option value="month">Bulan Ini</option>
+            <option value="last_month">Bulan Lalu</option>
+            <option value="last_3_months">3 Bulan Terakhir</option>
+            <option value="this_year">Tahun Ini</option>
+            <option value="custom">Pilih Tanggal</option>
+            <option value="all">Semua Waktu</option>
+          </select>
+        </div>
       </div>
 
       {loading ? (
@@ -195,7 +224,7 @@ export function Dashboard({ settings, onEditLog }: DashboardProps) {
           
           <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
             <div className="px-6 py-4 border-b border-gray-200">
-              <h3 className="text-lg font-bold text-gray-900">Log Terbaru</h3>
+              <h3 className="text-lg font-bold text-gray-900">Log Aktivitas</h3>
             </div>
             <div className="overflow-x-auto">
               <table className="w-full text-sm text-left text-gray-500">
@@ -209,7 +238,7 @@ export function Dashboard({ settings, onEditLog }: DashboardProps) {
                   </tr>
                 </thead>
                 <tbody>
-                  {logs.slice(0, 10).map((log) => (
+                  {logs.map((log) => (
                     <tr key={log.id} className="bg-white border-b hover:bg-gray-50">
                       <td className="px-6 py-4 font-medium text-gray-900 whitespace-nowrap">
                         {format(new Date(log.date), 'dd MMM yyyy')}
