@@ -5,7 +5,7 @@ import { db } from './src/db';
 
 async function startServer() {
   const app = express();
-  const PORT = 3000;
+  const PORT = 3002;
 
   app.use(express.json());
 
@@ -53,21 +53,21 @@ async function startServer() {
       JOIN members m ON l.member_id = m.id 
     `;
     const params: any[] = [];
-    
+
     if (startDate && endDate) {
       query += ' WHERE l.date >= ? AND l.date <= ? ';
       params.push(startDate, endDate);
     }
-    
+
     query += ' ORDER BY l.date DESC';
-    
+
     const logs = db.prepare(query).all(...params);
     res.json(logs);
   });
 
   app.post('/api/logs', (req, res) => {
     const { member_id, date, value, notes, mode } = req.body;
-    
+
     // Convert to numbers to be safe
     const incomingValue = parseInt(value, 10);
     const memberId = parseInt(member_id, 10);
@@ -77,17 +77,17 @@ async function startServer() {
     if (!memberId || !date || isNaN(incomingValue)) {
       return res.status(400).json({ error: 'Data tidak lengkap atau tidak valid' });
     }
-    
+
     // Check if log already exists for this member on this date
     const existing = db.prepare('SELECT id, value FROM reading_logs WHERE member_id = ? AND date = ?').get(memberId, date) as any;
-    
+
     if (existing) {
       console.log(`[LogActivity] Existing record found:`, existing);
-      
+
       // Explicitly check for 'add' mode
       const isAddMode = mode === 'add';
       const newValue = isAddMode ? (Number(existing.value) + incomingValue) : incomingValue;
-      
+
       console.log(`[LogActivity] Mode: ${mode}, Calculated newValue: ${newValue}`);
 
       let newNotes = existing.notes || '';
@@ -98,20 +98,20 @@ async function startServer() {
       } else {
         newNotes = notes || '';
       }
-      
+
       db.prepare('UPDATE reading_logs SET value = ?, notes = ? WHERE id = ?').run(newValue, newNotes, existing.id);
     } else {
       console.log(`[LogActivity] No existing record. Creating new one.`);
       db.prepare('INSERT INTO reading_logs (member_id, date, value, notes) VALUES (?, ?, ?, ?)').run(memberId, date, incomingValue, notes || '');
     }
-    
+
     res.json({ success: true });
   });
 
   app.put('/api/logs/:id', (req, res) => {
     const { id } = req.params;
     const { member_id, date, value, notes } = req.body;
-    
+
     if (!member_id || !date || value === undefined) {
       return res.status(400).json({ error: 'Missing required fields' });
     }
