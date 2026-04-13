@@ -88,12 +88,27 @@ server {
 }
 ```
 
-### 7. Updates
+### 7. Deployment Updates
 
-To deploy updates:
+Whenever you make changes to the code and want to deploy them to the production server, follow these steps:
+
 ```bash
-git pull
+# 1. Pull the latest code
+git pull origin main
+
+# 2. Install any new dependencies
 npm install
+
+# 3. Rebuild the application (Crucial for frontend and server changes)
 npm run build
+
+# 4. Restart the PM2 process to apply changes
 pm2 restart reading-tracker
 ```
+
+#### Troubleshooting: Module Version Mismatch
+If you encounter an error stating that `better-sqlite3` was compiled against a different Node.js version after an update, run:
+```bash
+npm rebuild better-sqlite3
+```
+This ensures the native SQLite bindings are correctly built for your current environment.
