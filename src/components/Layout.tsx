@@ -12,7 +12,7 @@ interface LayoutProps {
 export function Layout({ children, activeTab, setActiveTab, settings }: LayoutProps) {
   const navItems = [
     { id: 'dashboard', label: 'Dashboard', icon: BarChart3 },
-    { id: 'log', label: 'Catat Membaca', icon: BookOpen },
+    { id: 'log', label: 'Catat Aktivitas', icon: BookOpen },
     { id: 'settings', label: 'Pengaturan', icon: SettingsIcon },
   ];
 
@@ -48,8 +48,8 @@ export function Layout({ children, activeTab, setActiveTab, settings }: LayoutPr
                 onClick={() => setActiveTab(item.id)}
                 className={cn(
                   "flex items-center gap-3 w-full px-4 py-3 rounded-lg text-sm font-medium transition-colors",
-                  isActive 
-                    ? "bg-blue-50 text-blue-700" 
+                  isActive
+                    ? "bg-blue-50 text-blue-700"
                     : "text-gray-700 hover:bg-gray-100"
                 )}
               >

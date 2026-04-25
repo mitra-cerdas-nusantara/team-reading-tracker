@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { format } from 'date-fns';
+import { BookOpen, Play, Headphones } from 'lucide-react';
 
 interface LogActivityProps {
   settings: any;
@@ -89,7 +90,7 @@ export function LogActivity({ settings, editLogData, clearEdit }: LogActivityPro
         ...formData,
         value: parseInt(formData.value, 10)
       };
-      
+
       console.log('Submitting payload:', payload);
 
       const res = await fetch(url, {
@@ -104,14 +105,14 @@ export function LogActivity({ settings, editLogData, clearEdit }: LogActivityPro
       }
 
       setSuccess(true);
-      
+
       if (editLogData && clearEdit) {
         clearEdit();
       } else {
         setFormData(prev => ({ ...prev, value: '', notes: '' }));
         checkExistingLog();
       }
-      
+
       setTimeout(() => setSuccess(false), 3000);
     } catch (err: any) {
       setError(err.message);
@@ -131,7 +132,7 @@ export function LogActivity({ settings, editLogData, clearEdit }: LogActivityPro
       <div className="bg-white p-6 sm:p-8 rounded-xl border border-gray-200 shadow-sm">
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-2xl font-bold text-gray-900">
-            {editLogData ? 'Edit Catatan Membaca' : 'Catat Kegiatan Membaca'}
+            {editLogData ? 'Edit Catatan Aktivitas' : 'Catat Aktivitas'}
           </h2>
           {editLogData && (
             <button
@@ -145,7 +146,7 @@ export function LogActivity({ settings, editLogData, clearEdit }: LogActivityPro
 
         {success && (
           <div className="mb-6 p-4 bg-green-50 text-green-700 rounded-lg border border-green-200">
-            {editLogData ? 'Berhasil memperbarui catatan!' : 'Berhasil mencatat kegiatan membaca!'}
+            {editLogData ? 'Berhasil memperbarui catatan!' : 'Berhasil mencatat aktivitas!'}
           </div>
         )}
 
@@ -196,22 +197,20 @@ export function LogActivity({ settings, editLogData, clearEdit }: LogActivityPro
               <button
                 type="button"
                 onClick={() => setFormData({ ...formData, mode: 'add' })}
-                className={`flex-1 py-2 text-sm font-medium rounded-md transition-all ${
-                  formData.mode === 'add'
-                    ? 'bg-white text-blue-600 shadow-sm'
-                    : 'text-gray-500 hover:text-gray-700'
-                }`}
+                className={`flex-1 py-2 text-sm font-medium rounded-md transition-all ${formData.mode === 'add'
+                  ? 'bg-white text-blue-600 shadow-sm'
+                  : 'text-gray-500 hover:text-gray-700'
+                  }`}
               >
                 Tambah {unit}
               </button>
               <button
                 type="button"
                 onClick={() => setFormData({ ...formData, mode: 'replace' })}
-                className={`flex-1 py-2 text-sm font-medium rounded-md transition-all ${
-                  formData.mode === 'replace'
-                    ? 'bg-white text-blue-600 shadow-sm'
-                    : 'text-gray-500 hover:text-gray-700'
-                }`}
+                className={`flex-1 py-2 text-sm font-medium rounded-md transition-all ${formData.mode === 'replace'
+                  ? 'bg-white text-blue-600 shadow-sm'
+                  : 'text-gray-500 hover:text-gray-700'
+                  }`}
               >
                 Update {unit}
               </button>
@@ -231,10 +230,10 @@ export function LogActivity({ settings, editLogData, clearEdit }: LogActivityPro
               placeholder={formData.mode === 'add' ? `Contoh: +15` : `Contoh: 30`}
               className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5"
             />
-            
+
             {existingValue !== null && (
               <div className="mt-2 p-3 bg-blue-50 border border-blue-100 rounded-lg flex items-center justify-between">
-                <span className="text-sm text-blue-800 font-medium">Catatan hari ini:</span>
+                <span className="text-sm text-blue-800 font-medium">Total aktivitas hari ini:</span>
                 <span className="text-lg font-bold text-blue-900">{existingValue} {unit}</span>
               </div>
             )}
@@ -252,16 +251,29 @@ export function LogActivity({ settings, editLogData, clearEdit }: LogActivityPro
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Catatan (Opsional)
+            <label className="block text-sm font-medium text-gray-700 mb-3">
+              Jenis aktivitas
             </label>
-            <textarea
-              rows={3}
-              value={formData.notes}
-              onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-              placeholder="Buku apa yang dibaca? Atau catatan lainnya..."
-              className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5"
-            />
+            <div className="grid grid-cols-3 gap-3">
+              {[
+                { id: 'reading', label: 'Membaca', icon: BookOpen },
+                { id: 'watching', label: 'Menonton', icon: Play },
+                { id: 'listening', label: 'Mendengarkan', icon: Headphones },
+              ].map((type) => (
+                <button
+                  key={type.id}
+                  type="button"
+                  onClick={() => setFormData({ ...formData, notes: type.label })}
+                  className={`flex flex-col items-center justify-center p-4 rounded-xl border-2 transition-all ${formData.notes === type.label
+                    ? 'border-blue-600 bg-blue-50 text-blue-700 shadow-sm'
+                    : 'border-gray-100 bg-gray-50 text-gray-400 hover:border-gray-200 hover:bg-gray-100'
+                    }`}
+                >
+                  <type.icon className={`w-6 h-6 mb-2 ${formData.notes === type.label ? 'text-blue-600' : 'text-gray-400'}`} />
+                  <span className="text-xs font-bold uppercase tracking-wider">{type.label}</span>
+                </button>
+              ))}
+            </div>
           </div>
 
           <button

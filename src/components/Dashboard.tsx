@@ -197,7 +197,7 @@ export function Dashboard({ settings, onEditLog }: DashboardProps) {
                   <Calendar className="w-4 h-4 text-blue-500" />
                   {getCurrentRangeLabel()}
                 </div>
-                
+
                 {['today', 'week', 'month', 'last_month', 'last_3_months', 'this_year'].includes(timeRange) && (
                   <div className="flex items-center bg-white border border-gray-300 rounded-lg overflow-hidden shadow-sm">
                     <button
@@ -361,7 +361,7 @@ export function Dashboard({ settings, onEditLog }: DashboardProps) {
                   {logs.length === 0 && (
                     <tr>
                       <td colSpan={5} className="px-6 py-8 text-center text-gray-500">
-                        Tidak ada log membaca.
+                        Tidak ada log aktivitas.
                       </td>
                     </tr>
                   )}

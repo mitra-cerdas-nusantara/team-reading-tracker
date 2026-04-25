@@ -51,7 +51,7 @@ export function Settings({ settings, onSettingsChange }: SettingsProps) {
   };
 
   const handleDeleteMember = async (id: number) => {
-    if (!confirm('Yakin ingin menghapus anggota ini? Semua log membacanya juga akan terhapus.')) return;
+    if (!confirm('Yakin ingin menghapus anggota ini? Semua log aktivitasnya juga akan terhapus.')) return;
 
     try {
       await fetch(`/api/members/${id}`, { method: 'DELETE' });
@@ -67,7 +67,7 @@ export function Settings({ settings, onSettingsChange }: SettingsProps) {
       await fetch('/api/settings', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
+        body: JSON.stringify({
           tracking_mode: trackingMode,
           target_value: targetValue ? parseInt(targetValue, 10) : null,
           activity_name: activityName
@@ -85,17 +85,17 @@ export function Settings({ settings, onSettingsChange }: SettingsProps) {
     <div className="max-w-3xl mx-auto space-y-8">
       <div className="bg-white p-6 sm:p-8 rounded-xl border border-gray-200 shadow-sm">
         <h2 className="text-xl font-bold text-gray-900 mb-6">Pengaturan Perhitungan</h2>
-        
+
         <div className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Nama Kegiatan
+              Nama Aktivitas
             </label>
             <input
               type="text"
               value={activityName}
               onChange={(e) => setActivityName(e.target.value)}
-              placeholder="Contoh: Membaca Al-Quran, Membaca Novel"
+              placeholder="Contoh: Belajar Al-Quran"
               className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5"
             />
             <p className="mt-2 text-sm text-gray-500">
@@ -109,30 +109,30 @@ export function Settings({ settings, onSettingsChange }: SettingsProps) {
             </label>
             <div className="grid grid-cols-2 gap-4">
               <label className={`cursor-pointer border rounded-lg p-4 flex items-center justify-center text-center transition-colors ${trackingMode === 'minutes' ? 'border-blue-600 bg-blue-50 text-blue-700 font-medium' : 'border-gray-200 hover:bg-gray-50'}`}>
-                <input 
-                  type="radio" 
-                  name="trackingMode" 
-                  value="minutes" 
+                <input
+                  type="radio"
+                  name="trackingMode"
+                  value="minutes"
                   checked={trackingMode === 'minutes'}
                   onChange={() => setTrackingMode('minutes')}
-                  className="sr-only" 
+                  className="sr-only"
                 />
                 Berdasarkan Menit
               </label>
               <label className={`cursor-pointer border rounded-lg p-4 flex items-center justify-center text-center transition-colors ${trackingMode === 'pages' ? 'border-blue-600 bg-blue-50 text-blue-700 font-medium' : 'border-gray-200 hover:bg-gray-50'}`}>
-                <input 
-                  type="radio" 
-                  name="trackingMode" 
-                  value="pages" 
+                <input
+                  type="radio"
+                  name="trackingMode"
+                  value="pages"
                   checked={trackingMode === 'pages'}
                   onChange={() => setTrackingMode('pages')}
-                  className="sr-only" 
+                  className="sr-only"
                 />
                 Berdasarkan Halaman
               </label>
             </div>
             <p className="mt-2 text-sm text-gray-500">
-              Kesepakatan awal untuk perhitungan membaca tim.
+              Kesepakatan awal untuk perhitungan aktivitas tim.
             </p>
           </div>
 
@@ -168,7 +168,7 @@ export function Settings({ settings, onSettingsChange }: SettingsProps) {
 
       <div className="bg-white p-6 sm:p-8 rounded-xl border border-gray-200 shadow-sm">
         <h2 className="text-xl font-bold text-gray-900 mb-6">Kelola Anggota Tim</h2>
-        
+
         <form onSubmit={handleAddMember} className="flex gap-3 mb-6">
           <input
             type="text"
