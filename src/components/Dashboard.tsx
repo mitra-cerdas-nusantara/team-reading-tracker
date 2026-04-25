@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { format, subDays, startOfWeek, endOfWeek, startOfMonth, endOfMonth, subMonths, startOfYear, endOfYear } from 'date-fns';
+import { format, subDays, addDays, startOfWeek, endOfWeek, addWeeks, subWeeks, startOfMonth, endOfMonth, addMonths, subMonths, startOfYear, endOfYear, addYears, subYears } from 'date-fns';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { Pencil, Trash2 } from 'lucide-react';
+import { Pencil, Trash2, ChevronLeft, ChevronRight, Calendar } from 'lucide-react';
 
 interface DashboardProps {
   settings: any;
@@ -14,6 +14,7 @@ export function Dashboard({ settings, onEditLog }: DashboardProps) {
   const [timeRange, setTimeRange] = useState('week'); // 'week', 'month', 'all', 'custom'
   const [customStartDate, setCustomStartDate] = useState(format(subDays(new Date(), 30), 'yyyy-MM-dd'));
   const [customEndDate, setCustomEndDate] = useState(format(new Date(), 'yyyy-MM-dd'));
+  const [baseDate, setBaseDate] = useState(new Date());
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -22,7 +23,7 @@ export function Dashboard({ settings, onEditLog }: DashboardProps) {
 
   useEffect(() => {
     fetchLogs();
-  }, [timeRange, customStartDate, customEndDate]);
+  }, [timeRange, customStartDate, customEndDate, baseDate]);
 
   const fetchMembers = async () => {
     try {
@@ -38,7 +39,7 @@ export function Dashboard({ settings, onEditLog }: DashboardProps) {
     setLoading(true);
     try {
       let url = '/api/logs';
-      const today = new Date();
+      const today = baseDate;
       let startDate, endDate;
 
       if (timeRange === 'today') {
@@ -49,14 +50,9 @@ export function Dashboard({ settings, onEditLog }: DashboardProps) {
         startDate = format(startOfWeek(today, { weekStartsOn: 1 }), 'yyyy-MM-dd');
         endDate = format(endOfWeek(today, { weekStartsOn: 1 }), 'yyyy-MM-dd');
         url += `?startDate=${startDate}&endDate=${endDate}`;
-      } else if (timeRange === 'month') {
+      } else if (timeRange === 'month' || timeRange === 'last_month') {
         startDate = format(startOfMonth(today), 'yyyy-MM-dd');
         endDate = format(endOfMonth(today), 'yyyy-MM-dd');
-        url += `?startDate=${startDate}&endDate=${endDate}`;
-      } else if (timeRange === 'last_month') {
-        const lastMonth = subMonths(today, 1);
-        startDate = format(startOfMonth(lastMonth), 'yyyy-MM-dd');
-        endDate = format(endOfMonth(lastMonth), 'yyyy-MM-dd');
         url += `?startDate=${startDate}&endDate=${endDate}`;
       } else if (timeRange === 'last_3_months') {
         startDate = format(subMonths(today, 3), 'yyyy-MM-dd');
@@ -80,6 +76,53 @@ export function Dashboard({ settings, onEditLog }: DashboardProps) {
     }
   };
 
+  const handlePrev = () => {
+    switch (timeRange) {
+      case 'today': setBaseDate(prev => subDays(prev, 1)); break;
+      case 'week': setBaseDate(prev => subWeeks(prev, 1)); break;
+      case 'month':
+      case 'last_month': setBaseDate(prev => subMonths(prev, 1)); break;
+      case 'this_year': setBaseDate(prev => subYears(prev, 1)); break;
+      case 'last_3_months': setBaseDate(prev => subMonths(prev, 3)); break;
+    }
+  };
+
+  const handleNext = () => {
+    switch (timeRange) {
+      case 'today': setBaseDate(prev => addDays(prev, 1)); break;
+      case 'week': setBaseDate(prev => addWeeks(prev, 1)); break;
+      case 'month':
+      case 'last_month': setBaseDate(prev => addMonths(prev, 1)); break;
+      case 'this_year': setBaseDate(prev => addYears(prev, 1)); break;
+      case 'last_3_months': setBaseDate(prev => addMonths(prev, 3)); break;
+    }
+  };
+
+  const getCurrentRangeLabel = () => {
+    if (timeRange === 'all') return 'Semua Waktu';
+    if (timeRange === 'custom') return `${format(new Date(customStartDate), 'dd MMM yyyy')} - ${format(new Date(customEndDate), 'dd MMM yyyy')}`;
+
+    let start, end;
+    if (timeRange === 'today') {
+      return format(baseDate, 'dd MMMM yyyy');
+    } else if (timeRange === 'week') {
+      start = startOfWeek(baseDate, { weekStartsOn: 1 });
+      end = endOfWeek(baseDate, { weekStartsOn: 1 });
+    } else if (timeRange === 'month' || timeRange === 'last_month') {
+      start = startOfMonth(baseDate);
+      end = endOfMonth(baseDate);
+    } else if (timeRange === 'last_3_months') {
+      start = subMonths(baseDate, 3);
+      end = baseDate;
+    } else if (timeRange === 'this_year') {
+      start = startOfYear(baseDate);
+      end = endOfYear(baseDate);
+    } else {
+      return '';
+    }
+    return `${format(start, 'dd MMM')} - ${format(end, 'dd MMM yyyy')}`;
+  };
+
   const handleDeleteLog = async (id: number) => {
     if (!confirm('Yakin ingin menghapus catatan ini?')) return;
     try {
@@ -93,7 +136,7 @@ export function Dashboard({ settings, onEditLog }: DashboardProps) {
   // Process data for charts
   const getChartData = () => {
     const memberTotals: Record<string, number> = {};
-    
+
     // Initialize all members with 0
     members.forEach(member => {
       memberTotals[member.name] = 0;
@@ -122,39 +165,88 @@ export function Dashboard({ settings, onEditLog }: DashboardProps) {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <h2 className="text-2xl font-bold text-gray-900">Dashboard</h2>
         <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2">
-          {timeRange === 'custom' && (
-            <div className="flex items-center gap-2 mr-2">
-              <input
-                type="date"
-                value={customStartDate}
-                onChange={(e) => setCustomStartDate(e.target.value)}
-                className="bg-white border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block p-2"
-              />
-              <span className="text-gray-500">s/d</span>
-              <input
-                type="date"
-                value={customEndDate}
-                onChange={(e) => setCustomEndDate(e.target.value)}
-                className="bg-white border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block p-2"
-              />
-            </div>
-          )}
-          <select
-            value={timeRange}
-            onChange={(e) => setTimeRange(e.target.value)}
-            className="bg-white border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block p-2.5 min-w-[140px]"
-          >
-            <option value="today">Hari Ini</option>
-            <option value="week">Minggu Ini</option>
-            <option value="month">Bulan Ini</option>
-            <option value="last_month">Bulan Lalu</option>
-            <option value="last_3_months">3 Bulan Terakhir</option>
-            <option value="this_year">Tahun Ini</option>
-            <option value="custom">Pilih Tanggal</option>
-            <option value="all">Semua Waktu</option>
-          </select>
+
+          <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+
+            <select
+              value={timeRange}
+              onChange={(e) => {
+                const val = e.target.value;
+                setTimeRange(val);
+                if (val === 'last_month') {
+                  setBaseDate(subMonths(new Date(), 1));
+                } else {
+                  setBaseDate(new Date());
+                }
+              }}
+              className="bg-white border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block p-2.5 w-full sm:w-[140px]"
+            >
+              <option value="today">Hari Ini</option>
+              <option value="week">Minggu Ini</option>
+              <option value="month">Bulan Ini</option>
+              <option value="last_month">Bulan Lalu</option>
+              <option value="last_3_months">3 Bulan Terakhir</option>
+              <option value="this_year">Tahun Ini</option>
+              <option value="custom">Pilih Tanggal</option>
+              <option value="all">Semua Waktu</option>
+            </select>
+
+            {timeRange !== 'custom' && timeRange !== 'all' && (
+              <div className="flex w-full sm:w-auto items-center justify-between sm:justify-start gap-2">
+                <div className="flex items-center gap-2 text-sm font-medium text-gray-500 bg-gray-50 px-3 py-2 rounded-lg border border-gray-200">
+                  <Calendar className="w-4 h-4 text-blue-500" />
+                  {getCurrentRangeLabel()}
+                </div>
+                
+                {['today', 'week', 'month', 'last_month', 'last_3_months', 'this_year'].includes(timeRange) && (
+                  <div className="flex items-center bg-white border border-gray-300 rounded-lg overflow-hidden shadow-sm">
+                    <button
+                      onClick={handlePrev}
+                      className="p-2.5 hover:bg-gray-50 border-r border-gray-300 text-gray-600 transition-colors"
+                      title="Sebelumnya"
+                    >
+                      <ChevronLeft className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={handleNext}
+                      className="p-2.5 hover:bg-gray-50 text-gray-600 transition-colors"
+                      title="Selanjutnya"
+                    >
+                      <ChevronRight className="w-4 h-4" />
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {timeRange === 'all' && (
+              <div className="flex items-center gap-2 text-sm font-medium text-gray-500 bg-gray-50 px-3 py-2 rounded-lg border border-gray-200">
+                <Calendar className="w-4 h-4 text-blue-500" />
+                {getCurrentRangeLabel()}
+              </div>
+            )}
+
+            {timeRange === 'custom' && (
+              <div className="flex w-full sm:w-auto items-center gap-2">
+                <input
+                  type="date"
+                  value={customStartDate}
+                  onChange={(e) => setCustomStartDate(e.target.value)}
+                  className="bg-white border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block p-2 flex-1 min-w-0"
+                />
+                <span className="text-gray-500">s/d</span>
+                <input
+                  type="date"
+                  value={customEndDate}
+                  onChange={(e) => setCustomEndDate(e.target.value)}
+                  className="bg-white border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block p-2 flex-1 min-w-0"
+                />
+              </div>
+            )}
+          </div>
         </div>
       </div>
+
 
       {loading ? (
         <div className="flex justify-center py-12">
@@ -177,8 +269,8 @@ export function Dashboard({ settings, onEditLog }: DashboardProps) {
               <h3 className="text-sm font-medium text-gray-500 mb-1">Rata-rata Harian</h3>
               <div className="flex items-end gap-2">
                 <p className="text-3xl font-bold text-gray-900">
-                  {logs.length > 0 
-                    ? Math.round(chartData.reduce((sum, item) => sum + item.total, 0) / logs.length) 
+                  {logs.length > 0
+                    ? Math.round(chartData.reduce((sum, item) => sum + item.total, 0) / logs.length)
                     : 0}
                 </p>
                 {settings?.target_value && (
@@ -197,17 +289,17 @@ export function Dashboard({ settings, onEditLog }: DashboardProps) {
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={chartData} margin={{ top: 5, right: 20, bottom: 80, left: 0 }}>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E5E7EB" />
-                    <XAxis 
-                      dataKey="name" 
-                      axisLine={false} 
-                      tickLine={false} 
-                      tick={{ fill: '#6B7280', fontSize: 12 }} 
+                    <XAxis
+                      dataKey="name"
+                      axisLine={false}
+                      tickLine={false}
+                      tick={{ fill: '#6B7280', fontSize: 12 }}
                       interval={0}
                       angle={-45}
                       textAnchor="end"
                     />
                     <YAxis axisLine={false} tickLine={false} tick={{ fill: '#6B7280' }} />
-                    <Tooltip 
+                    <Tooltip
                       cursor={{ fill: '#F3F4F6' }}
                       contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
                     />
@@ -221,7 +313,7 @@ export function Dashboard({ settings, onEditLog }: DashboardProps) {
               </div>
             )}
           </div>
-          
+
           <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
             <div className="px-6 py-4 border-b border-gray-200">
               <h3 className="text-lg font-bold text-gray-900">Log Aktivitas</h3>
