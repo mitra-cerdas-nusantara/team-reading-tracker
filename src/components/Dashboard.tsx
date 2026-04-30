@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { format, subDays, addDays, startOfWeek, endOfWeek, addWeeks, subWeeks, startOfMonth, endOfMonth, addMonths, subMonths, startOfYear, endOfYear, addYears, subYears } from 'date-fns';
+import { format, subDays, addDays, startOfWeek, endOfWeek, addWeeks, subWeeks, startOfMonth, endOfMonth, addMonths, subMonths, startOfYear, endOfYear, addYears, subYears, differenceInDays, differenceInBusinessDays } from 'date-fns';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { Pencil, Trash2, ChevronLeft, ChevronRight, Calendar } from 'lucide-react';
 
@@ -16,6 +16,7 @@ export function Dashboard({ settings, onEditLog }: DashboardProps) {
   const [customEndDate, setCustomEndDate] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [baseDate, setBaseDate] = useState(new Date());
   const [loading, setLoading] = useState(true);
+  const [viewType, setViewType] = useState<'total' | 'average' | 'daily'>('total');
 
   useEffect(() => {
     fetchMembers();
@@ -123,6 +124,44 @@ export function Dashboard({ settings, onEditLog }: DashboardProps) {
     return `${format(start, 'dd MMM')} - ${format(end, 'dd MMM yyyy')}`;
   };
 
+  const getDaysInPeriod = () => {
+    let start, end;
+    const today = baseDate;
+
+    if (timeRange === "today") {
+      return 1; // Single day is treated as 1 working day for average purposes
+    }
+
+    if (timeRange === "all") {
+      if (logs.length === 0) return 1;
+      const dates = logs.map(l => new Date(l.date).getTime());
+      start = new Date(Math.min(...dates));
+      end = new Date(Math.max(...dates));
+    } else if (timeRange === "week") {
+      start = startOfWeek(today, { weekStartsOn: 1 });
+      end = endOfWeek(today, { weekStartsOn: 1 });
+    } else if (timeRange === "month" || timeRange === "last_month") {
+      start = startOfMonth(today);
+      end = endOfMonth(today);
+    } else if (timeRange === "last_3_months") {
+      start = subMonths(today, 3);
+      end = today;
+    } else if (timeRange === "this_year") {
+      start = startOfYear(today);
+      end = endOfYear(today);
+    } else if (timeRange === "custom") {
+      start = new Date(customStartDate);
+      end = new Date(customEndDate);
+    } else {
+      return 1;
+    }
+
+    // Calculate inclusive business days (Mon-Fri)
+    // We add 1 day to end to make it inclusive
+    const businessDays = differenceInBusinessDays(addDays(end, 1), start);
+    return Math.max(1, businessDays);
+  };
+
   const handleDeleteLog = async (id: number) => {
     if (!confirm('Yakin ingin menghapus catatan ini?')) return;
     try {
@@ -135,26 +174,34 @@ export function Dashboard({ settings, onEditLog }: DashboardProps) {
 
   // Process data for charts
   const getChartData = () => {
-    const memberTotals: Record<string, number> = {};
+    const memberData: Record<string, { total: number, count: number }> = {};
+    const totalDays = getDaysInPeriod();
 
     // Initialize all members with 0
     members.forEach(member => {
-      memberTotals[member.name] = 0;
+      memberData[member.name] = { total: 0, count: 0 };
     });
 
     // Add log values
     logs.forEach(log => {
-      if (memberTotals[log.member_name] !== undefined) {
-        memberTotals[log.member_name] += log.value;
+      if (memberData[log.member_name] !== undefined) {
+        memberData[log.member_name].total += log.value;
+        memberData[log.member_name].count += 1;
       } else {
-        memberTotals[log.member_name] = log.value; // Fallback if member was deleted but log exists
+        memberData[log.member_name] = { total: log.value, count: 1 };
       }
     });
 
-    return Object.entries(memberTotals).map(([name, total]) => ({
+    return Object.entries(memberData).map(([name, data]) => ({
       name,
-      total
-    })).sort((a, b) => b.total - a.total);
+      total: data.total,
+      average: data.count > 0 ? Math.round(data.total / data.count) : 0,
+      daily: Math.round((data.total / totalDays) * 10) / 10 // One decimal place for daily average
+    })).sort((a, b) => {
+      if (viewType === "total") return b.total - a.total;
+      if (viewType === "average") return b.average - a.average;
+      return b.daily - a.daily;
+    });
   };
 
   const chartData = getChartData();
@@ -164,85 +211,118 @@ export function Dashboard({ settings, onEditLog }: DashboardProps) {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <h2 className="text-2xl font-bold text-gray-900">Dashboard</h2>
-        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2">
-
-          <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
-
-            <select
-              value={timeRange}
-              onChange={(e) => {
-                const val = e.target.value;
-                setTimeRange(val);
-                if (val === 'last_month') {
-                  setBaseDate(subMonths(new Date(), 1));
-                } else {
-                  setBaseDate(new Date());
-                }
-              }}
-              className="bg-white border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block p-2.5 w-full sm:w-[140px]"
+        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+          <div className="flex bg-gray-100 p-1 rounded-lg shadow-inner">
+            <button
+              onClick={() => setViewType("total")}
+              className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all duration-200 ${viewType === "total"
+                ? "bg-white text-blue-600 shadow-sm"
+                : "text-gray-500 hover:text-gray-700"
+                }`}
             >
-              <option value="today">Hari Ini</option>
-              <option value="week">Minggu Ini</option>
-              <option value="month">Bulan Ini</option>
-              <option value="last_month">Bulan Lalu</option>
-              <option value="last_3_months">3 Bulan Terakhir</option>
-              <option value="this_year">Tahun Ini</option>
-              <option value="custom">Pilih Tanggal</option>
-              <option value="all">Semua Waktu</option>
-            </select>
+              TOTAL
+            </button>
+            <button
+              onClick={() => setViewType("average")}
+              className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all duration-200 ${viewType === "average"
+                ? "bg-white text-blue-600 shadow-sm"
+                : "text-gray-500 hover:text-gray-700"
+                }`}
+              title="Rata-rata per hari aktif"
+            >
+              AKTIF
+            </button>
+            <button
+              onClick={() => setViewType("daily")}
+              className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all duration-200 ${viewType === "daily"
+                ? "bg-white text-blue-600 shadow-sm"
+                : "text-gray-500 hover:text-gray-700"
+                }`}
+              title="Rata-rata per hari kerja dalam periode"
+            >
+              PERIODE
+            </button>
+          </div>
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2">
 
-            {timeRange !== 'custom' && timeRange !== 'all' && (
-              <div className="flex w-full sm:w-auto items-center justify-between sm:justify-start gap-2">
+            <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+
+              <select
+                value={timeRange}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setTimeRange(val);
+                  if (val === 'last_month') {
+                    setBaseDate(subMonths(new Date(), 1));
+                  } else {
+                    setBaseDate(new Date());
+                  }
+                }}
+                className="bg-white border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block p-2.5 w-full sm:w-[140px]"
+              >
+                <option value="today">Hari Ini</option>
+                <option value="week">Minggu Ini</option>
+                <option value="month">Bulan Ini</option>
+                <option value="last_month">Bulan Lalu</option>
+                <option value="last_3_months">3 Bulan Terakhir</option>
+                <option value="this_year">Tahun Ini</option>
+                <option value="custom">Pilih Tanggal</option>
+                <option value="all">Semua Waktu</option>
+              </select>
+
+              {timeRange !== 'custom' && timeRange !== 'all' && (
+                <div className="flex w-full sm:w-auto items-center justify-between sm:justify-start gap-2">
+                  <div className="flex items-center gap-2 text-sm font-medium text-gray-500 bg-gray-50 px-3 py-2 rounded-lg border border-gray-200">
+                    <Calendar className="w-4 h-4 text-blue-500" />
+                    {getCurrentRangeLabel()}
+                  </div>
+
+                  {['today', 'week', 'month', 'last_month', 'last_3_months', 'this_year'].includes(timeRange) && (
+                    <div className="flex items-center bg-white border border-gray-300 rounded-lg overflow-hidden shadow-sm">
+                      <button
+                        onClick={handlePrev}
+                        className="p-2.5 hover:bg-gray-50 border-r border-gray-300 text-gray-600 transition-colors"
+                        title="Sebelumnya"
+                      >
+                        <ChevronLeft className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={handleNext}
+                        className="p-2.5 hover:bg-gray-50 text-gray-600 transition-colors"
+                        title="Selanjutnya"
+                      >
+                        <ChevronRight className="w-4 h-4" />
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {timeRange === 'all' && (
                 <div className="flex items-center gap-2 text-sm font-medium text-gray-500 bg-gray-50 px-3 py-2 rounded-lg border border-gray-200">
                   <Calendar className="w-4 h-4 text-blue-500" />
                   {getCurrentRangeLabel()}
                 </div>
+              )}
 
-                {['today', 'week', 'month', 'last_month', 'last_3_months', 'this_year'].includes(timeRange) && (
-                  <div className="flex items-center bg-white border border-gray-300 rounded-lg overflow-hidden shadow-sm">
-                    <button
-                      onClick={handlePrev}
-                      className="p-2.5 hover:bg-gray-50 border-r border-gray-300 text-gray-600 transition-colors"
-                      title="Sebelumnya"
-                    >
-                      <ChevronLeft className="w-4 h-4" />
-                    </button>
-                    <button
-                      onClick={handleNext}
-                      className="p-2.5 hover:bg-gray-50 text-gray-600 transition-colors"
-                      title="Selanjutnya"
-                    >
-                      <ChevronRight className="w-4 h-4" />
-                    </button>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {timeRange === 'all' && (
-              <div className="flex items-center gap-2 text-sm font-medium text-gray-500 bg-gray-50 px-3 py-2 rounded-lg border border-gray-200">
-                <Calendar className="w-4 h-4 text-blue-500" />
-                {getCurrentRangeLabel()}
-              </div>
-            )}
-
-            {timeRange === 'custom' && (
-              <div className="flex w-full sm:w-auto items-center gap-2">
-                <input
-                  type="date"
-                  value={customStartDate}
-                  onChange={(e) => setCustomStartDate(e.target.value)}
-                  className="bg-white border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block p-2 flex-1 min-w-0"
-                />
-                <span className="text-gray-500">s/d</span>
-                <input
-                  type="date"
-                  value={customEndDate}
-                  onChange={(e) => setCustomEndDate(e.target.value)}
-                  className="bg-white border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block p-2 flex-1 min-w-0"
-                />
-              </div>
-            )}
+              {timeRange === 'custom' && (
+                <div className="flex w-full sm:w-auto items-center gap-2">
+                  <input
+                    type="date"
+                    value={customStartDate}
+                    onChange={(e) => setCustomStartDate(e.target.value)}
+                    className="bg-white border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block p-2 flex-1 min-w-0"
+                  />
+                  <span className="text-gray-500">s/d</span>
+                  <input
+                    type="date"
+                    value={customEndDate}
+                    onChange={(e) => setCustomEndDate(e.target.value)}
+                    className="bg-white border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block p-2 flex-1 min-w-0"
+                  />
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </div>
@@ -283,7 +363,13 @@ export function Dashboard({ settings, onEditLog }: DashboardProps) {
           </div>
 
           <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
-            <h3 className="text-lg font-bold text-gray-900 mb-6">Progress per Anggota ({unit})</h3>
+            <h3 className="text-lg font-bold text-gray-900 mb-6">
+              Progress per Anggota ({
+                viewType === "total" ? `Total ${unit}` :
+                  viewType === "average" ? `Rata-rata ${unit}/Total Hari Kegiatan` :
+                    `Rata-rata ${unit}/Total Hari Kerja`
+              })
+            </h3>
             {chartData.length > 0 ? (
               <div className="h-96">
                 <ResponsiveContainer width="100%" height="100%">
@@ -303,7 +389,16 @@ export function Dashboard({ settings, onEditLog }: DashboardProps) {
                       cursor={{ fill: '#F3F4F6' }}
                       contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
                     />
-                    <Bar dataKey="total" name={unit} fill="#2563EB" radius={[4, 4, 0, 0]} />
+                    <Bar
+                      dataKey={viewType === "total" ? "total" : viewType === "average" ? "average" : "daily"}
+                      name={
+                        viewType === "total" ? `Total ${unit}` :
+                          viewType === "average" ? `Rata-rata ${unit} (Aktif)` :
+                            `Rata-rata ${unit} (Hari Kerja)`
+                      }
+                      fill="#2563EB"
+                      radius={[4, 4, 0, 0]}
+                    />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
