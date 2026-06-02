@@ -15,6 +15,15 @@ export function LogActivity({ settings, editLogData, clearEdit }: LogActivityPro
   const [error, setError] = useState('');
   const [existingValue, setExistingValue] = useState<number | null>(null);
 
+  const ACTIVITY_LABELS = [
+    { id: 'reading', label: 'Membaca', icon: BookOpen },
+    { id: 'watching', label: 'Menonton', icon: Play },
+    { id: 'listening', label: 'Mendengarkan', icon: Headphones },
+  ] as const;
+
+  type ActivityLabel = (typeof ACTIVITY_LABELS)[number]['label'];
+  const NOTES_DELIMITER = ',';
+
   const [formData, setFormData] = useState({
     member_id: '',
     date: format(new Date(), 'yyyy-MM-dd'),
@@ -22,6 +31,12 @@ export function LogActivity({ settings, editLogData, clearEdit }: LogActivityPro
     notes: '',
     mode: 'add' // 'add' or 'replace'
   });
+
+  const [selectedActivities, setSelectedActivities] = useState<ActivityLabel[]>([]);
+
+  useEffect(() => {
+    setFormData((prev) => ({ ...prev, notes: selectedActivities.join(NOTES_DELIMITER + ' ') }));
+  }, [selectedActivities]);
 
   useEffect(() => {
     fetchMembers();
@@ -47,15 +62,29 @@ export function LogActivity({ settings, editLogData, clearEdit }: LogActivityPro
   };
 
   useEffect(() => {
+    const parseNotesToActivities = (notes: string): ActivityLabel[] => {
+      const normalized = (notes || '')
+        .split(NOTES_DELIMITER)
+        .map((s) => s.trim())
+        .filter(Boolean);
+
+      const allowed = new Set(ACTIVITY_LABELS.map((a) => a.label));
+      return normalized.filter((label): label is ActivityLabel => allowed.has(label));
+    };
+
     if (editLogData) {
+      const parsed = parseNotesToActivities(editLogData.notes || '');
+      setSelectedActivities(parsed);
+
       setFormData({
         member_id: editLogData.member_id.toString(),
         date: editLogData.date,
         value: editLogData.value.toString(),
-        notes: editLogData.notes || '',
+        notes: parsed.join(NOTES_DELIMITER + ' '),
         mode: 'replace'
       });
     } else {
+      setSelectedActivities([]);
       setFormData({
         member_id: '',
         date: format(new Date(), 'yyyy-MM-dd'),
@@ -86,10 +115,17 @@ export function LogActivity({ settings, editLogData, clearEdit }: LogActivityPro
       const url = editLogData ? `/api/logs/${editLogData.id}` : '/api/logs';
       const method = editLogData ? 'PUT' : 'POST';
 
+      const notes = selectedActivities.join(NOTES_DELIMITER + ' ');
+
+      // If user is adding to an existing log for the same member/date,
+      // backend will append notes when `mode === 'add'`.
       const payload = {
         ...formData,
+        mode: formData.mode,
+        notes,
         value: parseInt(formData.value, 10)
       };
+
 
       console.log('Submitting payload:', payload);
 
@@ -109,7 +145,13 @@ export function LogActivity({ settings, editLogData, clearEdit }: LogActivityPro
       if (editLogData && clearEdit) {
         clearEdit();
       } else {
-        setFormData(prev => ({ ...prev, value: '', notes: '' }));
+      setSelectedActivities([]);
+        setFormData(prev => ({
+          ...prev,
+          value: '',
+          notes: '',
+          mode: 'add'
+        }));
         checkExistingLog();
       }
 
@@ -255,21 +297,27 @@ export function LogActivity({ settings, editLogData, clearEdit }: LogActivityPro
               Jenis aktivitas
             </label>
             <div className="grid grid-cols-3 gap-3">
-              {[
-                { id: 'reading', label: 'Membaca', icon: BookOpen },
-                { id: 'watching', label: 'Menonton', icon: Play },
-                { id: 'listening', label: 'Mendengarkan', icon: Headphones },
-              ].map((type) => (
+              {ACTIVITY_LABELS.map((type) => (
                 <button
                   key={type.id}
                   type="button"
-                  onClick={() => setFormData({ ...formData, notes: type.label })}
-                  className={`flex flex-col items-center justify-center p-4 rounded-xl border-2 transition-all ${formData.notes === type.label
+                  onClick={() => {
+                    setSelectedActivities((prev) => {
+                      const exists = prev.includes(type.label as ActivityLabel);
+                      if (exists) {
+                        return prev.filter((a) => a !== (type.label as ActivityLabel));
+                      }
+                      return [...prev, type.label as ActivityLabel];
+                    });
+                  }}
+                  className={`flex flex-col items-center justify-center p-4 rounded-xl border-2 transition-all ${selectedActivities.includes(type.label as ActivityLabel)
                     ? 'border-blue-600 bg-blue-50 text-blue-700 shadow-sm'
                     : 'border-gray-100 bg-gray-50 text-gray-400 hover:border-gray-200 hover:bg-gray-100'
                     }`}
                 >
-                  <type.icon className={`w-6 h-6 mb-2 ${formData.notes === type.label ? 'text-blue-600' : 'text-gray-400'}`} />
+                  <type.icon
+                    className={`w-6 h-6 mb-2 ${selectedActivities.includes(type.label as ActivityLabel) ? 'text-blue-600' : 'text-gray-400'}`}
+                  />
                   <span className="text-xs font-bold uppercase tracking-wider">{type.label}</span>
                 </button>
               ))}

@@ -19,9 +19,13 @@ async function startServer() {
     const { tracking_mode, target_value, activity_name } = req.body;
     const existing = db.prepare('SELECT * FROM settings LIMIT 1').get();
     if (existing) {
-      db.prepare('UPDATE settings SET tracking_mode = ?, target_value = ?, activity_name = ?').run(tracking_mode, target_value, activity_name || 'Reading Tracker');
+      db
+        .prepare('UPDATE settings SET tracking_mode = ?, target_value = ?, activity_name = ?')
+        .run(tracking_mode, target_value, activity_name || 'Reading Tracker');
     } else {
-      db.prepare('INSERT INTO settings (tracking_mode, target_value, activity_name) VALUES (?, ?, ?)').run(tracking_mode, target_value, activity_name || 'Reading Tracker');
+      db
+        .prepare('INSERT INTO settings (tracking_mode, target_value, activity_name) VALUES (?, ?, ?)')
+        .run(tracking_mode, target_value, activity_name || 'Reading Tracker');
     }
     res.json({ success: true });
   });
@@ -79,21 +83,27 @@ async function startServer() {
     }
 
     // Check if log already exists for this member on this date
-    const existing = db.prepare('SELECT id, value FROM reading_logs WHERE member_id = ? AND date = ?').get(memberId, date) as any;
+    const existing = db
+      .prepare('SELECT id, value, notes FROM reading_logs WHERE member_id = ? AND date = ?')
+      .get(memberId, date) as any;
 
     if (existing) {
-      console.log(`[LogActivity] Existing record found:`, existing);
-
       // Explicitly check for 'add' mode
       const isAddMode = mode === 'add';
-      const newValue = isAddMode ? (Number(existing.value) + incomingValue) : incomingValue;
+
+      // Minutes/pages: add when mode === 'add', otherwise replace
+      const newValue = isAddMode ? Number(existing.value) + incomingValue : incomingValue;
 
       console.log(`[LogActivity] Mode: ${mode}, Calculated newValue: ${newValue}`);
 
+      // Notes: concatenate when add mode.
+      // LogActivity sends notes as comma-separated labels (e.g. "Membaca, Menonton").
       let newNotes = existing.notes || '';
       if (isAddMode) {
-        if (notes) {
-          newNotes = newNotes ? `${newNotes}\n${notes}` : notes;
+        const incomingNotes = (notes || '').trim();
+        const existingTrimmed = (existing.notes || '').trim();
+        if (incomingNotes) {
+          newNotes = existingTrimmed ? `${existingTrimmed}, ${incomingNotes}` : incomingNotes;
         }
       } else {
         newNotes = notes || '';
@@ -102,7 +112,9 @@ async function startServer() {
       db.prepare('UPDATE reading_logs SET value = ?, notes = ? WHERE id = ?').run(newValue, newNotes, existing.id);
     } else {
       console.log(`[LogActivity] No existing record. Creating new one.`);
-      db.prepare('INSERT INTO reading_logs (member_id, date, value, notes) VALUES (?, ?, ?, ?)').run(memberId, date, incomingValue, notes || '');
+      db
+        .prepare('INSERT INTO reading_logs (member_id, date, value, notes) VALUES (?, ?, ?, ?)')
+        .run(memberId, date, incomingValue, notes || '');
     }
 
     res.json({ success: true });
@@ -117,12 +129,16 @@ async function startServer() {
     }
 
     // Check if another log exists for this member and date
-    const existing = db.prepare('SELECT id FROM reading_logs WHERE member_id = ? AND date = ? AND id != ?').get(member_id, date, id);
+    const existing = db
+      .prepare('SELECT id FROM reading_logs WHERE member_id = ? AND date = ? AND id != ?')
+      .get(member_id, date, id);
     if (existing) {
       return res.status(400).json({ error: 'Catatan sudah ada untuk anggota ini pada tanggal tersebut' });
     }
 
-    db.prepare('UPDATE reading_logs SET member_id = ?, date = ?, value = ?, notes = ? WHERE id = ?').run(member_id, date, value, notes || '', id);
+    db
+      .prepare('UPDATE reading_logs SET member_id = ?, date = ?, value = ?, notes = ? WHERE id = ?')
+      .run(member_id, date, value, notes || '', id);
     res.json({ success: true });
   });
 
@@ -153,3 +169,4 @@ async function startServer() {
 }
 
 startServer();
+
