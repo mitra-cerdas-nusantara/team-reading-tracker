@@ -9,6 +9,10 @@ if (!fs.existsSync(dbDir)) {
 
 export const db = new Database(path.join(dbDir, 'reading_tracker.db'));
 
+// Ensure FK constraints are enforced (important for deletes/updates)
+db.pragma('foreign_keys = ON');
+
+
 // Initialize schema
 db.exec(`
   CREATE TABLE IF NOT EXISTS settings (
@@ -40,6 +44,16 @@ try {
   const tableInfo = db.pragma('table_info(settings)') as any[];
   if (!tableInfo.some(col => col.name === 'activity_name')) {
     db.exec("ALTER TABLE settings ADD COLUMN activity_name TEXT DEFAULT 'Reading Tracker'");
+  }
+} catch (e) {
+  console.error("Migration error:", e);
+}
+
+// Migration: Add secret_password to settings if it doesn't exist
+try {
+  const tableInfo = db.pragma('table_info(settings)') as any[];
+  if (!tableInfo.some(col => col.name === 'secret_password')) {
+    db.exec("ALTER TABLE settings ADD COLUMN secret_password TEXT DEFAULT ''");
   }
 } catch (e) {
   console.error("Migration error:", e);

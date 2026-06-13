@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Trash2, UserPlus, Save } from 'lucide-react';
+import { Trash2, UserPlus, Save, Shield, Eye, EyeOff } from 'lucide-react';
 
 interface SettingsProps {
   settings: any;
@@ -12,6 +12,8 @@ export function Settings({ settings, onSettingsChange }: SettingsProps) {
   const [trackingMode, setTrackingMode] = useState(settings?.tracking_mode || 'minutes');
   const [targetValue, setTargetValue] = useState(settings?.target_value || '');
   const [activityName, setActivityName] = useState(settings?.activity_name || 'Reading Tracker');
+  const [secretPassword, setSecretPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -70,7 +72,8 @@ export function Settings({ settings, onSettingsChange }: SettingsProps) {
         body: JSON.stringify({
           tracking_mode: trackingMode,
           target_value: targetValue ? parseInt(targetValue, 10) : null,
-          activity_name: activityName
+          activity_name: activityName,
+          secret_password: secretPassword
         })
       });
       onSettingsChange();
@@ -153,10 +156,38 @@ export function Settings({ settings, onSettingsChange }: SettingsProps) {
             </p>
           </div>
 
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              <div className="flex items-center gap-2">
+                <Shield className="w-4 h-4" />
+                Password Superadmin
+              </div>
+            </label>
+            <div className="relative">
+              <input
+                type={showPassword ? 'text' : 'password'}
+                value={secretPassword}
+                onChange={(e) => setSecretPassword(e.target.value)}
+                placeholder="Kosongkan untuk menonaktifkan"
+                className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 pr-10"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600"
+              >
+                {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
+            </div>
+            <p className="mt-2 text-sm text-gray-500">
+              Password untuk mengakses halaman pengaturan. Biarkan kosong jika tidak diperlukan.
+            </p>
+          </div>
+
           <div className="pt-4">
             <button
               onClick={handleSaveSettings}
-              disabled={saving || (trackingMode === settings?.tracking_mode && targetValue == (settings?.target_value || '') && activityName === (settings?.activity_name || 'Reading Tracker'))}
+              disabled={saving}
               className="flex items-center gap-2 text-white bg-blue-600 hover:bg-blue-700 focus:ring-4 focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
               <Save className="w-4 h-4" />

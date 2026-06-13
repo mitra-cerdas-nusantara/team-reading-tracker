@@ -9,6 +9,7 @@ export default function App() {
   const [settings, setSettings] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [editLogData, setEditLogData] = useState<any>(null);
+  const [superadmin, setSuperadmin] = useState(false);
 
   const fetchSettings = async () => {
     try {
@@ -26,6 +27,18 @@ export default function App() {
     fetchSettings();
   }, []);
 
+  const handleSuperadminToggle = (value: boolean) => {
+    setSuperadmin(value);
+    if (!value && activeTab === 'settings') {
+      setActiveTab('dashboard');
+    }
+  };
+
+  const handleSetActiveTab = (tab: string) => {
+    if (tab === 'settings' && !superadmin) return;
+    setActiveTab(tab);
+  };
+
   const handleEditLog = (log: any) => {
     setEditLogData(log);
     setActiveTab('log');
@@ -40,7 +53,7 @@ export default function App() {
   }
 
   return (
-    <Layout activeTab={activeTab} setActiveTab={setActiveTab} settings={settings}>
+    <Layout activeTab={activeTab} setActiveTab={handleSetActiveTab} settings={settings} superadmin={superadmin} onSuperadminToggle={handleSuperadminToggle}>
       {activeTab === 'dashboard' && <Dashboard settings={settings} onEditLog={handleEditLog} />}
       {activeTab === 'log' && <LogActivity settings={settings} editLogData={editLogData} clearEdit={() => setEditLogData(null)} />}
       {activeTab === 'settings' && <Settings settings={settings} onSettingsChange={fetchSettings} />}

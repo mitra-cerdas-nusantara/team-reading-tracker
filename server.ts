@@ -11,23 +11,39 @@ async function startServer() {
 
   // API Routes
   app.get('/api/settings', (req, res) => {
-    const settings = db.prepare('SELECT * FROM settings LIMIT 1').get();
-    res.json(settings || { tracking_mode: 'minutes', target_value: null });
+    const settings = db.prepare('SELECT * FROM settings LIMIT 1').get() as any;
+    if (settings) {
+      const { secret_password, ...safe } = settings;
+      res.json(safe);
+    } else {
+      res.json({ tracking_mode: 'minutes', target_value: null });
+    }
   });
 
   app.post('/api/settings', (req, res) => {
-    const { tracking_mode, target_value, activity_name } = req.body;
+    const { tracking_mode, target_value, activity_name, secret_password } = req.body;
     const existing = db.prepare('SELECT * FROM settings LIMIT 1').get();
     if (existing) {
       db
-        .prepare('UPDATE settings SET tracking_mode = ?, target_value = ?, activity_name = ?')
-        .run(tracking_mode, target_value, activity_name || 'Reading Tracker');
+        .prepare('UPDATE settings SET tracking_mode = ?, target_value = ?, activity_name = ?, secret_password = ?')
+        .run(tracking_mode, target_value, activity_name || 'Reading Tracker', secret_password || '');
     } else {
       db
-        .prepare('INSERT INTO settings (tracking_mode, target_value, activity_name) VALUES (?, ?, ?)')
-        .run(tracking_mode, target_value, activity_name || 'Reading Tracker');
+        .prepare('INSERT INTO settings (tracking_mode, target_value, activity_name, secret_password) VALUES (?, ?, ?, ?)')
+        .run(tracking_mode, target_value, activity_name || 'Reading Tracker', secret_password || '');
     }
     res.json({ success: true });
+  });
+
+  app.post('/api/auth/superadmin', (req, res) => {
+    const { password } = req.body;
+    const settings = db.prepare('SELECT secret_password FROM settings LIMIT 1').get() as any;
+    const secretPassword = settings?.secret_password || '';
+    if (!secretPassword || password === secretPassword) {
+      res.json({ success: true });
+    } else {
+      res.status(401).json({ error: 'Password salah' });
+    }
   });
 
   app.get('/api/members', (req, res) => {
@@ -43,11 +59,20 @@ async function startServer() {
   });
 
   app.delete('/api/members/:id', (req, res) => {
-    const { id } = req.params;
-    db.prepare('DELETE FROM members WHERE id = ?').run(id);
+    const rawId = req.params.id;
+    const id = Number(rawId);
+
+    if (!Number.isInteger(id)) {
+      return res.status(400).json({ error: 'Invalid member id' });
+    }
+
+    // Delete dependent rows first (safer if foreign keys are enforced)
     db.prepare('DELETE FROM reading_logs WHERE member_id = ?').run(id);
+    db.prepare('DELETE FROM members WHERE id = ?').run(id);
+
     res.json({ success: true });
   });
+
 
   app.get('/api/logs', (req, res) => {
     const { startDate, endDate } = req.query;

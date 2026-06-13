@@ -68,8 +68,9 @@ export function LogActivity({ settings, editLogData, clearEdit }: LogActivityPro
         .map((s) => s.trim())
         .filter(Boolean);
 
-      const allowed = new Set(ACTIVITY_LABELS.map((a) => a.label));
-      return normalized.filter((label): label is ActivityLabel => allowed.has(label));
+      const allowed = new Set<ActivityLabel>(ACTIVITY_LABELS.map((a) => a.label as ActivityLabel));
+      return normalized.filter((label): label is ActivityLabel => allowed.has(label as ActivityLabel));
+
     };
 
     if (editLogData) {
