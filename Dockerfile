@@ -14,6 +14,8 @@ FROM node:22-alpine
 
 WORKDIR /app
 
+ENV NODE_ENV=production
+
 RUN apk add --no-cache tini ca-certificates && \
     addgroup -g 1001 app && \
     adduser -u 1001 -G app -s /bin/sh -D app && \

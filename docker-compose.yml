@@ -9,10 +9,16 @@ services:
       - ./data:/app/data
     env_file:
       - .env
+    networks:
+      - proxy
     labels:
-      traefik.enable: "true"
-      traefik.http.routers.app.rule: Host(`${DOMAIN?DOMAIN not set}`)
-      traefik.http.routers.app.entrypoints: websecure
-      traefik.http.routers.app.tls: "true"
-      traefik.http.routers.app.tls.certresolver: letsencrypt
-      traefik.http.services.app.loadbalancer.server.port: "3002"
+      - "traefik.enable=true"
+      - "traefik.http.routers.app.rule=Host(`${DOMAIN}`)"
+      - "traefik.http.routers.app.entrypoints=websecure"
+      - "traefik.http.routers.app.tls=true"
+      - "traefik.http.routers.app.tls.certresolver=le"   
+      - "traefik.http.services.app.loadbalancer.server.port=3002"
+
+networks:
+  proxy:
+    external: true
