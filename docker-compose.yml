@@ -6,7 +6,7 @@ services:
     container_name: reading-tracker
     restart: unless-stopped
     volumes:
-      - ./data:/app/data
+      - data:/app/data
     env_file:
       - .env
     networks:
@@ -18,6 +18,10 @@ services:
       - "traefik.http.routers.app.tls=true"
       - "traefik.http.routers.app.tls.certresolver=le"   
       - "traefik.http.services.app.loadbalancer.server.port=3002"
+
+
+volumes:
+  data:
 
 networks:
   proxy:
